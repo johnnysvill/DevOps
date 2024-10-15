@@ -73,11 +73,6 @@
         regexp: "DB_REPL_PASSWORD"
         replace: "{{ hostvars[inventory_hostname]['DB_REPL_PASSWORD'] }}"
 
-    - name: Run init.sql to initialize the database
-      command: /usr/bin/psql -a -f /tmp/init.sql
-      become: true
-      become_user: postgres
-
     - name: Update postgresql.conf for replication
       blockinfile:
         path: "/etc/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/main/postgresql.conf"
