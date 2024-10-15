@@ -1,0 +1,65 @@
+version: '3'
+
+services:
+    bot:
+      build:
+        context: ./bot
+        dockerfile: Dockerfile
+      container_name: bot
+      image: 192.168.254.197:5000/bot_image
+      env_file:
+        - .env
+      depends_on:
+        - db
+      volumes:
+        - postgreslogs:/var/log/postgresql
+
+    db:
+      build:
+        context: ./db
+        dockerfile: Dockerfile
+      container_name: db
+      image: 192.168.254.197:5000/db_image
+      env_file:
+        - .env
+      environment:
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+        POSTGRES_DB: ${DB_DATABASE}
+        POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+        POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      command: |
+        postgres
+        -c wal_level=replica
+        -c hot_standby=on
+        -c max_wal_senders=10
+        -c max_replication_slots=10
+        -c hot_standby_feedback=on
+        -c log_replication_commands=on
+        -c log_replication_commands=on
+        -c logging_collector=on
+        -c log_file_mode=0777
+        -c log_directory='/var/log/postgresql'
+        -c log_destination=stderr
+        -c log_filename='postgresql.log'
+      ports:
+        - "5432:5432"
+      volumes:
+        - postgreslogs:/var/log/postgresql
+
+    db_repl:
+      build:
+        context: ./db_repl
+        dockerfile: Dockerfile
+      image: 192.168.254.197:5000/db_repl_image
+      container_name: db_repl
+      ports:
+        - "5433:5432"
+      environment:
+        PGUSER: ${DB_REPL_USER}
+        PGPASSWORD: ${DB_REPL_PASSWORD}
+      depends_on:
+        - db
+
+volumes:
+  postgreslogs:
