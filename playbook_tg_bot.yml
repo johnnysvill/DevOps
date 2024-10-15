@@ -1,6 +1,8 @@
 - name: db playbook
   hosts: db_host
   become: yes
+  vars_files:
+    - vars.yml
   tasks:
     - name: Update APT cache
       ansible.builtin.apt:
