@@ -21,6 +21,11 @@
           - python3
           - python3-pip
 
+    - name: Install PostgreSQL client
+      apt:
+        pkg:
+          - postgresql-client
+
     - name: Clone Git repository
       git:
         repo: "{{ hostvars[inventory_hostname]['GIT'] }}"
@@ -34,9 +39,9 @@
       copy:
         src: init.sql
         dest: /tmp/init.sql
-
-    - name: Change file permissions
-      command: chown postgres:postgres /tmp/init.sql
+        owner: postgres
+        group: postgres
+        mode: '0644'
 
     - name: Replace DB_DATABASE name in init.sql
       replace:
