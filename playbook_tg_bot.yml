@@ -41,7 +41,7 @@
         dest: /tmp/init.sql
         owner: postgres
         group: postgres
-        mode: '0644'
+        mode: '0644'  # Установите нужные права доступа для файла
 
     - name: Replace DB_DATABASE name in init.sql
       replace:
