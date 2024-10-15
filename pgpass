@@ -1,1 +1,1 @@
-192.168.17.148:5432:*:replication_user:replication_user_password
+192.168.254.167:5432:*:repl_user:1
