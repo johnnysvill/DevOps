@@ -152,6 +152,4 @@
         ROOT_PASSWORD: "{{ hostvars[inventory_hostname]['RM_PASSWORD'] }}"
         TOKEN: "{{ hostvars[inventory_hostname]['TOKEN'] }}"
 
-      TOKEN: "{{ hostvars[inventory_hostname]['TOKEN'] }}"
-        DB_USER: "{{ hostvars[inventory_hostname]['DB_USER'] }}"
       command: python3 /usr/src/bot/bot.py
