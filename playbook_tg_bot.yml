@@ -15,7 +15,7 @@
           - python3-pip
         state: present
 
-    - name: "pip_psycorg2"
+    - name: "pip_psycopg2"
       pip:
         state: present
         name:
@@ -54,13 +54,11 @@
 
     - name: "Create bot_db database"
       become_user: postgres
-      become: yes
       postgresql_db:
         name: "bot_db"
         state: present
 
     - name: "Create phone_number table"
-      become: yes
       become_user: postgres
       postgresql_query:
         db: "bot_db"
@@ -71,7 +69,6 @@
           );
 
     - name: "Create email table"
-      become: yes
       become_user: postgres
       postgresql_query:
         db: "bot_db"
@@ -83,7 +80,6 @@
 
     - name: "Grant privileges to the user on the database"
       become_user: postgres
-      become: yes
       postgresql_privs:
         db: "bot_db"
         roles: "postgres"
