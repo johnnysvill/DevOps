@@ -1,0 +1,44 @@
+- name: Configure and deploy PostgreSQL DB
+  hosts: db_host
+  become: yes
+  tasks:
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install PostgreSQL and dependencies
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3
+          - python3-pip
+        state: present
+
+    - name: Copy pg_hba.conf to DB host
+      ansible.builtin.copy:
+        src: ./pg_hba.conf
+        dest: /etc/postgresql/12/main/pg_hba.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    - name: Copy config-postgresql to DB host
+      ansible.builtin.copy:
+        src: ./config-postgresql
+        dest: /etc/postgresql/12/main/postgresql.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    - name: Restart PostgreSQL service
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
+
+    - name: Create database and replication user
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: repl_user
+        password: "{{ lookup('file', './pgpass') }}"
+        priv: "REPLICATION"
