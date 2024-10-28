@@ -81,14 +81,6 @@
             Email_Address VARCHAR(255) NOT NULL
           );
 
-    - name: "Create a database user"
-      become_user: postgres
-      become: yes
-      postgresql_user:
-        name: "postgres"
-        password: "1"
-        state: present
-
     - name: "Grant privileges to the user on the database"
       become_user: postgres
       become: yes
