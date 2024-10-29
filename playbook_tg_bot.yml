@@ -15,16 +15,10 @@
           - python3-pip
         state: present
 
-    - name: "pip_psycopg2"
-      pip:
-        state: present
-        name:
-          - psycopg2
-
     - name: Copy pg_hba.conf to DB host
       ansible.builtin.copy:
         src: ./pg_hba.conf
-        dest: /etc/postgresql/15/main/pg_hba.conf
+        dest: /etc/postgresql/17/main/pg_hba.conf
         owner: postgres
         group: postgres
         mode: '0644'
@@ -32,25 +26,31 @@
     - name: Copy config-postgresql to DB host
       ansible.builtin.copy:
         src: ./config-postgresql
-        dest: /etc/postgresql/15/main/postgresql.conf
+        dest: /etc/postgresql/17/main/postgresql.conf
         owner: postgres
         group: postgres
         mode: '0644'
 
     - name: "Add bot access to pg_hba.conf"
       ansible.builtin.lineinfile:
-        line: "host all all {{ hostvars['bot_host'].ansible_host }}/24 password"
-        path: /etc/postgresql/15/main/pg_hba.conf
+        line: "host all all {{ hostvars['bot'].ansible_host }}/24 password"
+        path: /etc/postgresql/17/main/pg_hba.conf
 
     - name: "Add replication access to pg_hba.conf"
       ansible.builtin.lineinfile:
-        line: "host replication repl_user {{ hostvars['db_repl_host'].ansible_host }}/24 scram-sha-256"
-        path: /etc/postgresql/15/main/pg_hba.conf
+        line: "host replication repl_user {{ hostvars['db_repl'].ansible_host }}/24 scram-sha-256"
+        path: /etc/postgresql/17/main/pg_hba.conf
 
     - name: Restart PostgreSQL service
       ansible.builtin.service:
         name: postgresql
         state: restarted
+
+    - name: Refresh collation version on template1
+      become: true
+      become_user: postgres
+      command: psql -c "ALTER DATABASE template1 REFRESH COLLATION VERSION;"
+
 
     - name: "Create bot_db database"
       become_user: postgres
@@ -78,20 +78,27 @@
             Email_Address VARCHAR(255) NOT NULL
           );
 
-    - name: "Grant privileges to the user on the database"
+    - name: "Grant privileges on phone_number table"
+      become: true
       become_user: postgres
-      postgresql_privs:
+      postgresql_query:
         db: "bot_db"
-        roles: "postgres"
-        privs: "ALL"
-        state: present
+        query: "GRANT ALL PRIVILEGES ON TABLE phone_number TO postgres;"
+
+    - name: "Grant privileges on email table"
+      become: true
+      become_user: postgres
+      postgresql_query:
+        db: "bot_db"
+        query: "GRANT ALL PRIVILEGES ON TABLE email TO postgres;"
 
     - name: Create database and replication user
       become_user: postgres
       community.postgresql.postgresql_user:
         name: repl_user
         password: "{{ lookup('file', './pgpass') }}"
-        priv: "REPLICATION"
+        role_attr_flags: "REPLICATION"
+        state: present
 
 - name: Configure and deploy PostgreSQL replica
   hosts: db_repl_host
@@ -100,7 +107,7 @@
     - name: Update APT cache
       ansible.builtin.apt:
         update_cache: yes
-        
+
     - name: Install PostgreSQL and dependencies
       ansible.builtin.apt:
         name:
@@ -111,11 +118,11 @@
         state: present
 
     - name: Update postgresql.conf for replication
-      become_user: postgres
+      become: true
       ansible.builtin.lineinfile:
-        path: /etc/postgresql/15/main/postgresql.conf
+        path: /etc/postgresql/14/main/postgresql.conf
         regexp: '^#?(listen_addresses) ='
-        line: "listen_addresses = 'localhost, {{ hostvars['db_repl_host'].ansible_host }}'"
+        line: "listen_addresses = 'localhost, {{ hostvars['db_repl'].ansible_host }}'"
 
     - name: Stop PostgreSQL service
       ansible.builtin.service:
@@ -124,23 +131,22 @@
 
     - name: Remove files from main directory
       ansible.builtin.file:
-        path: /var/lib/postgresql/15/main
+        path: /var/lib/postgresql/14/main
         state: absent
-        recurse: yes
 
     - name: Create main directory
       ansible.builtin.file:
-        path: /var/lib/postgresql/15/main
+        path: /var/lib/postgresql/14/main
         state: directory
         owner: postgres
         group: postgres
         mode: '0700'
 
     - name: Perform base backup from Master server
-      become_user: postgres
+      become: true
       ansible.builtin.command:
-        cmd: pg_basebackup -R -h {{ hostvars['db_host'].ansible_host }} -U repl_user -D /var/lib/postgresql/15/main
-        creates: /var/lib/postgresql/15/main/PG_VERSION
+        cmd: pg_basebackup -R -h {{ hostvars['db'].ansible_host }} -U repl_user -D /var/lib/postgresql/14/main
+        creates: /var/lib/postgresql/14/main/PG_VERSION
       environment:
         PGPASSWORD: "{{ lookup('file', './pgpass') }}"
 
@@ -208,5 +214,6 @@
         name: "{{ bot_service }}"
         enabled: yes
         state: started
+
 
 
