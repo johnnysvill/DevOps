@@ -158,8 +158,6 @@
     bot_service: "telegram_bot"
     bot_venv_directory: "{{ bot_directory }}/venv"
     bot_python: "/usr/bin/python3"
-    bot_user: "botuser"
-    bot_group: "botgroup"
 
   tasks:
     - name: Update APT cache
@@ -175,22 +173,10 @@
           - git
         state: present
 
-    - name: Create bot user and group
-      ansible.builtin.user:
-        name: "{{ bot_user }}"
-        shell: /bin/bash
-        state: present
-
-      ansible.builtin.group:
-        name: "{{ bot_group }}"
-        state: present
-
     - name: Create bot directory
       ansible.builtin.file:
         path: "{{ bot_directory }}"
         state: directory
-        owner: "{{ bot_user }}"
-        group: "{{ bot_group }}"
         mode: '0755'
 
     - name: Clone bot repository
@@ -200,29 +186,21 @@
         version: "main"
         force: yes
         accept_hostkey: yes
-      become: yes
-      become_user: "{{ bot_user }}"
 
     - name: Create Python virtual environment
       ansible.builtin.command:
         cmd: "{{ bot_python }} -m venv {{ bot_venv_directory }}"
         creates: "{{ bot_venv_directory }}"
-      become: yes
-      become_user: "{{ bot_user }}"
 
     - name: Install Python dependencies
       ansible.builtin.pip:
         requirements: "{{ bot_directory }}/requirements.txt"
         virtualenv: "{{ bot_venv_directory }}"
-      become: yes
-      become_user: "{{ bot_user }}"
 
     - name: Copy environment variables file
       ansible.builtin.copy:
         src: "./.env"
         dest: "{{ bot_directory }}/.env"
-        owner: "{{ bot_user }}"
-        group: "{{ bot_group }}"
         mode: '0600'
 
     - name: Create systemd service file for bot
@@ -242,4 +220,5 @@
         name: "{{ bot_service }}"
         enabled: yes
         state: started
+
 
