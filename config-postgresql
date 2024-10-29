@@ -601,7 +601,7 @@ log_timezone = 'Europe/Moscow'
 # PROCESS TITLE
 #------------------------------------------------------------------------------
 
-cluster_name = '15/main'			# added to process titles if nonempty
+cluster_name = '17/main'			# added to process titles if nonempty
 					# (change requires restart)
 #update_process_title = on
 
