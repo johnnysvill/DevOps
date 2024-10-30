@@ -13,12 +13,13 @@
           - postgresql-contrib
           - python3
           - python3-pip
+          - python3-psycopg2
         state: present
 
     - name: Copy pg_hba.conf to DB host
       ansible.builtin.copy:
         src: ./pg_hba.conf
-        dest: /etc/postgresql/17/main/pg_hba.conf
+        dest: /etc/postgresql/15/main/pg_hba.conf
         owner: postgres
         group: postgres
         mode: '0644'
@@ -26,7 +27,7 @@
     - name: Copy config-postgresql to DB host
       ansible.builtin.copy:
         src: ./config-postgresql
-        dest: /etc/postgresql/17/main/postgresql.conf
+        dest: /etc/postgresql/15/main/postgresql.conf
         owner: postgres
         group: postgres
         mode: '0644'
@@ -34,12 +35,12 @@
     - name: "Add bot access to pg_hba.conf"
       ansible.builtin.lineinfile:
         line: "host all all {{ hostvars['bot'].ansible_host }}/24 password"
-        path: /etc/postgresql/17/main/pg_hba.conf
+        path: /etc/postgresql/15/main/pg_hba.conf
 
     - name: "Add replication access to pg_hba.conf"
       ansible.builtin.lineinfile:
         line: "host replication repl_user {{ hostvars['db_repl'].ansible_host }}/24 scram-sha-256"
-        path: /etc/postgresql/17/main/pg_hba.conf
+        path: /etc/postgresql/15/main/pg_hba.conf
 
     - name: Restart PostgreSQL service
       ansible.builtin.service:
@@ -50,7 +51,6 @@
       become: true
       become_user: postgres
       command: psql -c "ALTER DATABASE template1 REFRESH COLLATION VERSION;"
-
 
     - name: "Create bot_db database"
       become_user: postgres
@@ -120,7 +120,7 @@
     - name: Update postgresql.conf for replication
       become: true
       ansible.builtin.lineinfile:
-        path: /etc/postgresql/14/main/postgresql.conf
+        path: /etc/postgresql/15/main/postgresql.conf
         regexp: '^#?(listen_addresses) ='
         line: "listen_addresses = 'localhost, {{ hostvars['db_repl'].ansible_host }}'"
 
@@ -131,12 +131,12 @@
 
     - name: Remove files from main directory
       ansible.builtin.file:
-        path: /var/lib/postgresql/14/main
+        path: /var/lib/postgresql/15/main
         state: absent
 
     - name: Create main directory
       ansible.builtin.file:
-        path: /var/lib/postgresql/14/main
+        path: /var/lib/postgresql/15/main
         state: directory
         owner: postgres
         group: postgres
@@ -145,8 +145,8 @@
     - name: Perform base backup from Master server
       become: true
       ansible.builtin.command:
-        cmd: pg_basebackup -R -h {{ hostvars['db'].ansible_host }} -U repl_user -D /var/lib/postgresql/14/main
-        creates: /var/lib/postgresql/14/main/PG_VERSION
+        cmd: pg_basebackup -R -h {{ hostvars['db'].ansible_host }} -U repl_user -D /var/lib/postgresql/15/main
+        creates: /var/lib/postgresql/15/main/PG_VERSION
       environment:
         PGPASSWORD: "{{ lookup('file', './pgpass') }}"
 
@@ -161,9 +161,9 @@
   vars:
     bot_repo: "https://github.com/johnnysvill/DevOps.git"
     bot_directory: "/opt/telegram_bot"
-    bot_service: "telegram_bot"
     bot_venv_directory: "{{ bot_directory }}/venv"
     bot_python: "/usr/bin/python3"
+    bot_subdirectory: "bot"
 
   tasks:
     - name: Update APT cache
@@ -189,7 +189,7 @@
       ansible.builtin.git:
         repo: "{{ bot_repo }}"
         dest: "{{ bot_directory }}"
-        version: "main"
+        version: "docker"
         force: yes
         accept_hostkey: yes
 
@@ -200,7 +200,7 @@
 
     - name: Install Python dependencies
       ansible.builtin.pip:
-        requirements: "{{ bot_directory }}/requirements.txt"
+        requirements: "{{ bot_directory }}/{{ bot_subdirectory }}/requirements.txt"
         virtualenv: "{{ bot_venv_directory }}"
 
     - name: Copy environment variables file
@@ -209,11 +209,7 @@
         dest: "{{ bot_directory }}/.env"
         mode: '0600'
 
-    - name: Enable and start bot service
-      ansible.builtin.systemd:
-        name: "{{ bot_service }}"
-        enabled: yes
-        state: started
-
-
-
+    - name: Start bot
+      ansible.builtin.command:
+        cmd: "{{ bot_venv_directory }}/bin/python {{ bot_directory }}/bot/bot.py &"
+        chdir: "{{ bot_directory }}"
